@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe AI</title>
+<meta name="description" content="レシピ生成AI - 入力した食材で分量・手順つきのレシピを生成します"> 
+
+<style>
+:root {
+  --bg-1: #1f1420;
+  --bg-2: #3a2230;
+  --bg-3: #5a392f;
+  --panel: rgba(31, 20, 31, 0.78);
+  --panel-strong: rgba(255, 255, 255, 0.08);
+  --line: rgba(255, 238, 226, 0.14);
+  --text: #fff7f1;
+  --muted: #e6cec0;
+  --accent: #ff8a5b;
+  --accent-2: #ffc27a;
+  --shadow: 0 24px 60px rgba(17, 7, 15, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "Inter", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  color: var(--text);
+  padding: clamp(12px, 2.2vw, 24px);
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 194, 122, 0.22), transparent 24%),
+    radial-gradient(circle at 85% 15%, rgba(255, 138, 91, 0.22), transparent 25%),
+    linear-gradient(140deg, var(--bg-1), var(--bg-2) 50%, var(--bg-3));
+}
+
+.container {
+  width: 100%;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: clamp(16px, 2.8vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  background: var(--panel);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow);
+}
+
+.hero {
+  margin-bottom: 22px;
+}
+
+.badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 194, 122, 0.14);
+  border: 1px solid rgba(255, 194, 122, 0.2);
+  color: #ffe6c7;
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 14px 0 10px;
+  font-size: clamp(2rem, 5vw, 2.8rem);
+  line-height: 1.1;
+}
+
+.lead {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 0.98rem;
+}
+
+#boxes {
+  display: grid;
+  gap: 12px;
+}
+
+.box {
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 28px rgba(20, 8, 16, 0.16);
+}
+
+.box-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.box-label {
+  display: block;
+  margin-bottom: 0;
+  color: #ffe8d9;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.remove-box-button {
+  width: auto;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  box-shadow: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid rgba(255, 238, 226, 0.12);
+  border-radius: 14px;
+  background: rgba(23, 14, 21, 0.78);
+  color: var(--text);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+input::placeholder {
+  color: #c9ada0;
+}
+
+input:focus {
+  transform: translateY(-1px);
+  border-color: rgba(255, 194, 122, 0.8);
+  box-shadow: 0 0 0 4px rgba(255, 194, 122, 0.12);
+}
+
+.actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.secondary-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+button {
+  margin-top: 0;
+  padding: 13px 16px;
+  width: 100%;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), #ff6a67);
+  color: white;
+  font-weight: 800;
+  font-size: 0.98rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 12px 24px rgba(255, 106, 103, 0.24);
+}
+
+button:hover {
+  transform: translateY(-2px);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+.subtle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading {
+  margin-top: 14px;
+  min-height: 24px;
+  color: var(--accent-2);
+  font-weight: 700;
+}
+
+.result {
+  margin-top: 18px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  box-shadow: 0 16px 36px rgba(20, 8, 16, 0.18);
+  min-height: 110px;
+}
+
+.result:empty::before {
+  content: "ここにレシピ結果が表示されます";
+  color: var(--muted);
+}
+
+.result h2,
+.result h3 {
+  margin-top: 0;
+}
+
+.result ul,
+.result ol {
+  padding-left: 1.2rem;
+}
+
+.result li {
+  margin-bottom: 6px;
+  line-height: 1.6;
+}
+
+.recipe-list {
+  display: grid;
+  gap: 10px;
+}
+
+.recipe-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.recipe-item h3 {
+  margin: 0 0 6px;
+}
+
+.recipe-item .meta {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.detail-link {
+  display: inline-block;
+  text-decoration: none;
+  color: #ffe5c1;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  font-weight: 700;
+}
+
+.calorie {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 194, 122, 0.12);
+  display: inline-block;
+  color: #ffe5c1;
+  font-weight: 700;
+}
+
+.favorites {
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+}
+
+.favorites h3 {
+  margin: 0 0 12px;
+}
+
+.favorites-list {
+  display: grid;
+  gap: 10px;
+}
+
+.favorite-item {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.favorite-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.favorite-meta {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.favorites-empty {
+  color: var(--muted);
+  margin: 0;
+}
+
+/* Smartphone */
+@media (max-width: 640px) {
+  .container {
+    border-radius: 20px;
+  }
+
+  .secondary-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .actions,
+  .secondary-actions {
+    gap: 8px;
+  }
+
+  button {
+    min-height: 44px;
+  }
+}
+
+/* Tablet */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .container {
+    max-width: 780px;
+  }
+
+  .secondary-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Desktop */
+@media (min-width: 1025px) {
+  .container {
+    max-width: 920px;
+  }
+}
+
+/* 追加: 人数ボタン用グリッドとアクティブ状態 */
+.people-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+.people-grid button {
+  width: 100%;
+  padding: 8px 10px;
+  font-weight: 700;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,238,226,0.08);
+  cursor: pointer;
+}
+.people-grid button.active-people {
+  background: linear-gradient(90deg, var(--accent), #ff6a67);
+  color: white;
+  box-shadow: 0 8px 18px rgba(255,106,103,0.16);
+  border: none;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="hero">
+  <div class="badge">🥕 かんたん入力でレシピ提案</div>
+  <h1>🍳 レシピ生成AI</h1>
+  <p class="lead">冷蔵庫の中身を入力して、簡単にレシピを生成できます。</p>
+</div>
+
+<!-- 変更: 人数設定を食材ボックスの上へ移動し、5x2グリッドに -->
+<div class="box">
+  <div class="box-head">
+    <label class="box-label">設定</label>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <label style="min-width:60px;">人数</label>
+    <div id="peopleButtons" class="people-grid">
+      <button type="button" class="subtle" data-people="1">1</button>
+      <button type="button" class="subtle" data-people="2">2</button>
+      <button type="button" class="subtle" data-people="3">3</button>
+      <button type="button" class="subtle" data-people="4">4</button>
+      <button type="button" class="subtle" data-people="5">5</button>
+      <button type="button" class="subtle" data-people="6">6</button>
+      <button type="button" class="subtle" data-people="7">7</button>
+      <button type="button" class="subtle" data-people="8">8</button>
+      <!-- 9と10はバックが1〜8の範囲なので削除 -->
+    </div>
+  </div>
+</div>
+
+<div id="boxes"></div>
+
+<div class="actions">
+  <button id="addBoxButton" class="subtle" onclick="addBox()">+ 食材追加</button>
+  <button id="generateButton" onclick="generate()">レシピ生成</button>
+</div>
+
+<div class="secondary-actions">
+  <button id="regenerateButton" class="subtle" onclick="regenerateRecipe()" disabled>🔄 再生成</button>
+  <button id="favoriteButton" class="subtle" onclick="saveFavorite()" disabled>⭐ お気に入り保存</button>
+  <button class="subtle" onclick="location.href='/favorites'">📌 保管庫を開く</button>
+</div>
+
+<div id="loading" class="loading"></div>
+
+<div id="result" class="result"></div>
+
+<section class="favorites">
+  <h3>📌 保存したレシピ</h3>
+  <div id="favoritesList" class="favorites-list"></div>
+</section>
+
+</div>
+
+<script>
+
+const API_URL = "/chat";
+const FAVORITES_KEY = "recipe-ai-favorites";
+const LATEST_RECIPES_KEY = "recipe-ai-latest-recipes";
+const REQUEST_COOLDOWN_MS = 800;
+const INITIAL_BOX_COUNT = 3;
+const MIN_BOX_COUNT = 1;
+const INGREDIENT_CATEGORIES = {
+  肉: [
+    "鶏もも肉", "鶏むね肉", "鶏ささみ", "鶏ひき肉", "手羽先",
+    "手羽元", "豚こま肉", "豚バラ肉", "豚ロース", "豚ひき肉",
+    "豚肩ロース", "豚もも肉", "牛こま肉", "牛バラ肉", "牛もも肉",
+    "牛ひき肉", "合いびき肉", "ベーコン", "ソーセージ", "ハム",
+    "鴨肉", "ラム肉", "スペアリブ", "鶏レバー", "豚レバー"
+  ],
+  野菜: [
+    "玉ねぎ", "長ねぎ", "ねぎ", "にんじん", "じゃがいも",
+    "さつまいも", "大根", "かぶ", "れんこん", "ごぼう",
+    "キャベツ", "白菜", "レタス", "ほうれん草", "小松菜",
+    "水菜", "春菊", "チンゲン菜", "トマト", "きゅうり",
+    "なす", "ピーマン", "パプリカ", "もやし", "ブロッコリー"
+  ],
+  魚介: [
+    "鮭", "サバ", "アジ", "イワシ", "サンマ",
+    "ブリ", "タイ", "タラ", "マグロ", "カツオ",
+    "しらす", "ツナ缶", "サーモン", "エビ", "むきえび",
+    "イカ", "タコ", "あさり", "しじみ", "ホタテ",
+    "かにかま", "ちくわ", "かまぼこ", "ししゃも", "明太子"
+  ],
+  炭水化物: [
+    "米", "ご飯", "玄米", "もち米", "おにぎり",
+    "食パン", "ロールパン", "フランスパン", "ベーグル", "うどん",
+    "そば", "中華麺", "焼きそば麺", "そうめん", "ひやむぎ",
+    "パスタ", "スパゲッティ", "マカロニ", "ペンネ", "フェットチーネ",
+    "春雨", "しらたき", "餅", "ナン", "トルティーヤ"
+  ],
+  調味料: [
+    "醤油", "味噌", "塩", "砂糖", "酢",
+    "みりん", "料理酒", "酒", "ごま油", "サラダ油",
+    "オリーブオイル", "バター", "こしょう", "胡椒", "だし",
+    "めんつゆ", "ポン酢", "マヨネーズ", "ケチャップ", "ソース",
+    "豆板醤", "鶏がらスープの素", "コンソメ", "にんにく", "しょうが"
+  ]
+};
+const INGREDIENT_SUGGESTIONS = Object.values(INGREDIENT_CATEGORIES).flat();
+let lastMessage = "";
+let lastRecipe = null;
+let lastRecipes = [];
+let isRequesting = false;
+let isSavingFavorite = false;
+let lastRequestAt = 0;
+
+const resultDiv = document.getElementById("result");
+const loading = document.getElementById("loading");
+const addBoxButton = document.getElementById("addBoxButton");
+const generateButton = document.getElementById("generateButton");
+const regenerateButton = document.getElementById("regenerateButton");
+const favoriteButton = document.getElementById("favoriteButton");
+const favoritesList = document.getElementById("favoritesList");
+
+const peopleButtonsContainer = document.getElementById("peopleButtons");
+let lastPeople = 2; // デフォルト2人
+
+function updatePeopleButtonsUI() {
+  if (!peopleButtonsContainer) return;
+  [...peopleButtonsContainer.querySelectorAll("button[data-people]")].forEach(btn => {
+    const p = parseInt(btn.dataset.people, 10);
+    // クラス付与でアクティブ表示
+    btn.classList.toggle("active-people", p === lastPeople);
+  });
+}
+
+function selectPeople(n) {
+  lastPeople = Math.max(1, Math.min(8, parseInt(n, 10) || 1));
+  updatePeopleButtonsUI();
+}
+
+// 初期化: ボタンにイベント登録
+if (peopleButtonsContainer) {
+  peopleButtonsContainer.querySelectorAll("button[data-people]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (isRequesting) return;
+      selectPeople(btn.dataset.people);
+    });
+  });
+  // 初期選択
+  selectPeople(lastPeople);
+}
+
+// setRequestState を拡張して人数ボタンを無効化
+function setRequestState(busy) {
+  isRequesting = busy;
+  addBoxButton.disabled = busy;
+  generateButton.disabled = busy;
+  regenerateButton.disabled = busy || !lastMessage;
+  favoriteButton.disabled = busy || !lastRecipe;
+  if (peopleButtonsContainer) {
+    peopleButtonsContainer.querySelectorAll("button[data-people]").forEach(b => b.disabled = busy);
+  }
+  refreshBoxControls();
+}
+
+function canRequestNow() {
+  if (isRequesting) return false;
+  if (Date.now() - lastRequestAt < REQUEST_COOLDOWN_MS) return false;
+  return true;
+}
+
+function recipeSignature(recipe, message, people) {
+  return JSON.stringify({
+    name: recipe?.name || "",
+    message: message || "",
+    people: people ?? 1,
+    calories: recipe?.calories ?? "",
+    ingredients: Array.isArray(recipe?.ingredients) ? recipe.ingredients : [],
+    steps: Array.isArray(recipe?.steps) ? recipe.steps : []
+  });
+}
+
+function getBoxes() {
+  return [...document.querySelectorAll("#boxes .box")];
+}
+
+function getUsedSuggestions() {
+  return getBoxes()
+    .map((box) => box.querySelector(".ingredient")?.dataset?.suggestion)
+    .filter(Boolean);
+}
+
+function pickSuggestion() {
+  const used = new Set(getUsedSuggestions());
+  const available = INGREDIENT_SUGGESTIONS.filter((item) => !used.has(item));
+  const source = available.length ? available : INGREDIENT_SUGGESTIONS;
+  return source[Math.floor(Math.random() * source.length)];
+}
+
+function refreshBoxControls() {
+  const boxes = getBoxes();
+
+  boxes.forEach((box, index) => {
+    const label = box.querySelector(".box-label");
+    const removeButton = box.querySelector(".remove-box-button");
+
+    if (label) {
+      label.textContent = `食材 ${index + 1}`;
+    }
+
+    if (removeButton) {
+      const lockDelete = isRequesting || boxes.length <= MIN_BOX_COUNT;
+      removeButton.disabled = lockDelete;
+      removeButton.hidden = boxes.length <= MIN_BOX_COUNT;
+    }
+  });
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function getFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function setFavorites(list) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(list));
+}
+
+function renderFavorites() {
+  const list = getFavorites();
+
+  if (!list.length) {
+    favoritesList.innerHTML = '<p class="favorites-empty">まだ保存はありません。</p>';
+    return;
+  }
+
+  favoritesList.innerHTML = list
+    .map(item => `
+      <article class="favorite-item">
+        <p class="favorite-title">${escapeHtml(item.name || "名前なしレシピ")}</p>
+        <div class="favorite-meta">食材: ${escapeHtml(item.message || "-")}</div>
+        <div class="favorite-meta">保存日時: ${escapeHtml(item.savedAt || "-")}</div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderRecipe(data) {
+  const ingredients = Array.isArray(data.ingredients) ? data.ingredients : [];
+  const steps = Array.isArray(data.steps) ? data.steps : [];
+
+  resultDiv.innerHTML = `
+    <h2>${escapeHtml(data.name || "レシピ名なし")}</h2>
+    <div class="meta">人数: ${escapeHtml(String(data.servings ?? data.people ?? lastPeople ?? 1))}人</div>
+
+    <h3>材料</h3>
+    <ul>
+      ${ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join("")}
+    </ul>
+
+    <h3>手順</h3>
+    <ol>
+      ${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("")}
+    </ol>
+
+    <p class="calorie">🔥 ${escapeHtml(data.calories ?? "-")} kcal</p>
+  `;
+}
+
+function extractRecipes(data) {
+  if (Array.isArray(data?.recipes) && data.recipes.length) {
+    return data.recipes;
+  }
+  if (data && typeof data === "object") {
+    return [data];
+  }
+  return [];
+}
+
+function saveLatestRecipes(recipes, message, people = 1) {
+  localStorage.setItem(LATEST_RECIPES_KEY, JSON.stringify({
+    savedAt: new Date().toISOString(),
+    message,
+    people,
+    recipes
+  }));
+}
+
+function renderRecipeList(recipes) {
+  resultDiv.innerHTML = `
+    <h2>候補レシピ ${recipes.length}件</h2>
+    <div class="meta">人数: ${escapeHtml(String(lastPeople || 1))}人</div>
+    <div class="recipe-list">
+      ${recipes.map((recipe, index) => `
+        <article class="recipe-item">
+          <h3>${escapeHtml(recipe.name || `候補 ${index + 1}`)}</h3>
+          <p class="meta">${escapeHtml(recipe.selected_ingredients || "入力食材から提案")}</p>
+          <a class="detail-link" href="/detail?i=${index}">作り方を見る</a>
+        </article>
+      `).join("")}
+    </div>
+  `;
+}
+
+async function requestRecipe(message, people = 1) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ message, servings: people })
+  });
+
+  const data = await res.json();
+  console.log("APIレスポンス:", data);
+  if (!res.ok) {
+    throw new Error(data?.error || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+// 初期BOX
+// 変更: DOMContentLoaded内で生成（DOM読み込み前実行を防止）
+window.addEventListener("DOMContentLoaded", () => {
+  for (let i = 0; i < INITIAL_BOX_COUNT; i++) {
+    addBox();
+  }
+});
+
+// BOX追加
+function addBox() {
+  if (isRequesting) return;
+
+  const div = document.createElement("div");
+  div.className = "box";
+  const count = getBoxes().length + 1;
+
+  div.innerHTML = `
+    <div class="box-head">
+      <label class="box-label">食材 ${count}</label>
+      <button type="button" class="remove-box-button">削除</button>
+    </div>
+    <input class="ingredient" placeholder="">
+  `;
+
+  const ingredientInput = div.querySelector(".ingredient");
+  const suggestion = pickSuggestion();
+  ingredientInput.dataset.suggestion = suggestion;
+  ingredientInput.placeholder = `例：${suggestion}`;
+
+  const removeButton = div.querySelector(".remove-box-button");
+  removeButton.addEventListener("click", () => {
+    if (isRequesting) return;
+
+    if (getBoxes().length <= MIN_BOX_COUNT) {
+      loading.textContent = `食材BOXは最低${MIN_BOX_COUNT}つ必要です`;
+      setTimeout(() => {
+        if (loading.textContent === `食材BOXは最低${MIN_BOX_COUNT}つ必要です`) {
+          loading.textContent = "";
+        }
+      }, 1100);
+      return;
+    }
+
+    div.remove();
+    refreshBoxControls();
+  });
+
+  document.getElementById("boxes").appendChild(div);
+  refreshBoxControls();
+}
+
+// レシピ生成
+async function generate() {
+  if (!canRequestNow()) {
+    loading.textContent = "少し待ってから実行してください";
+    return;
+  }
+
+  const inputs = document.querySelectorAll(".ingredient");
+
+  const ingredients = Array.from(inputs)
+    .map(i => i.value.trim())
+    .filter(v => v !== "");
+
+  const message = ingredients.join(",");
+
+  if (!message) {
+    alert("食材を入力してください");
+    return;
+  }
+
+  // 人数を使用
+  const people = lastPeople || 1;
+
+  setRequestState(true);
+  lastRequestAt = Date.now();
+  loading.textContent = "生成中（数十秒〜数分かかる場合があります）...";
+  resultDiv.innerHTML = "";
+
+  try {
+    const data = await requestRecipe(message, people);
+    console.log("APIレスポンス (generate):", data);
+    if (data?.status === "fallback") {
+      resultDiv.innerHTML = "レシピ生成に失敗しました（食材を変えてください）";
+      lastRecipes = [];
+      lastRecipe = null;
+      saveLatestRecipes([], message, people);
+      lastMessage = message;
+      setRequestState(false);
+      loading.textContent = "";
+      return;
+    }
+    if (data?.error && !data?.name) {
+      resultDiv.innerHTML = `APIエラー: ${escapeHtml(String(data.error))}`;
+      setRequestState(false);
+      loading.textContent = "";
+      return;
+    }
+    const recipes = extractRecipes(data);
+    if (recipes.length > 1) {
+      renderRecipeList(recipes);
+    } else if (recipes.length === 1) {
+      renderRecipe(recipes[0]);
+    } else {
+      renderRecipe(data);
+    }
+    lastRecipes = recipes;
+    lastRecipe = recipes[0] || data;
+    saveLatestRecipes(recipes.length ? recipes : [data], message, people);
+    lastMessage = message;
+    lastPeople = people;
+    regenerateButton.disabled = false;
+    favoriteButton.disabled = false;
+
+  } catch (e) {
+    resultDiv.innerHTML = `通信エラー: ${escapeHtml(e.message)}`;
+  } finally {
+    setRequestState(false);
+    loading.textContent = "";
+  }
+}
+
+// regenerateRecipe でも人数を使用
+async function regenerateRecipe() {
+  if (!canRequestNow()) {
+    loading.textContent = "少し待ってから実行してください";
+    return;
+  }
+
+  if (!lastMessage) return;
+
+  setRequestState(true);
+  lastRequestAt = Date.now();
+  loading.textContent = "再生成中...";
+
+  try {
+    const data = await requestRecipe(lastMessage, lastPeople);
+    console.log("APIレスポンス (regenerate):", data);
+    if (data?.status === "fallback") {
+      resultDiv.innerHTML = "レシピ生成に失敗しました（食材を変えてください）";
+      lastRecipes = [];
+      lastRecipe = null;
+      saveLatestRecipes([], lastMessage, lastPeople);
+      setRequestState(false);
+      loading.textContent = "";
+      return;
+    }
+    if (data?.error && !data?.name) {
+      resultDiv.innerHTML = `APIエラー: ${escapeHtml(String(data.error))}`;
+      setRequestState(false);
+      loading.textContent = "";
+      return;
+    }
+    const recipes = extractRecipes(data);
+    if (recipes.length > 1) {
+      renderRecipeList(recipes);
+    } else if (recipes.length === 1) {
+      renderRecipe(recipes[0]);
+    } else {
+      renderRecipe(data);
+    }
+    lastRecipes = recipes;
+    lastRecipe = recipes[0] || data;
+    saveLatestRecipes(recipes.length ? recipes : [data], lastMessage, lastPeople);
+  } catch (e) {
+    resultDiv.innerHTML = `再生成エラー: ${escapeHtml(e.message)}`;
+  } finally {
+    setRequestState(false);
+    loading.textContent = "";
+  }
+}
+
+// saveFavorite を修正し未完部分を復旧（syntax error を解消）
+function saveFavorite() {
+  if (isSavingFavorite || isRequesting) return;
+
+  if (!lastRecipe || !lastMessage) {
+    alert("先にレシピを生成してください");
+    return;
+  }
+
+  isSavingFavorite = true;
+  favoriteButton.disabled = true;
+
+  const favorites = getFavorites();
+  const signature = recipeSignature(lastRecipe, lastMessage, lastPeople);
+
+  if (favorites.some(item => item.signature === signature)) {
+    loading.textContent = "このレシピは保存済みです";
+    setTimeout(() => {
+      loading.textContent = "";
+      isSavingFavorite = false;
+      favoriteButton.disabled = false;
+    }, 900);
+    return;
+  }
+
+  favorites.unshift({
+    name: lastRecipe.name || "名前なしレシピ",
+    message: lastMessage,
+    people: lastPeople,
+    savedAt: new Date().toLocaleString("ja-JP"),
+    recipe: lastRecipe,
+    signature
+  });
+
+  setFavorites(favorites.slice(0, 15));
+  renderFavorites();
+  loading.textContent = "お気に入りに保存しました";
+  setTimeout(() => {
+    if (loading.textContent === "お気に入りに保存しました") {
+      loading.textContent = "";
+    }
+    isSavingFavorite = false;
+    favoriteButton.disabled = false;
+  }, 1200);
+}
+
+// 初期レンダーと状態
+renderFavorites();
+setRequestState(false);
+</script>
+
+</body>
+</html>

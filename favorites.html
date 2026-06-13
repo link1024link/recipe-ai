@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recipe AI — お気に入り</title>
+<style>
+:root {
+  --bg-1: #14271f;
+  --bg-2: #1f3a2e;
+  --panel: rgba(11, 28, 21, 0.82);
+  --line: rgba(210, 240, 224, 0.2);
+  --text: #f3fff9;
+  --muted: #c4ddd1;
+  --accent: #2f8f68;
+  --accent-2: #45b086;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: "Inter", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+  color: var(--text);
+  background: radial-gradient(circle at 15% 15%, rgba(69, 176, 134, 0.18), transparent 28%), linear-gradient(140deg, var(--bg-1), var(--bg-2));
+}
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 24px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+}
+h1 { margin: 0 0 8px; }
+.note { margin: 0 0 16px; color: var(--muted); }
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+button, a.btn {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  background: rgba(255,255,255,0.06);
+  cursor: pointer;
+}
+button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255,255,255,0.05);
+}
+.card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.meta {
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin-bottom: 8px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.empty { color: var(--muted); }
+.preview {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(255,255,255,0.05);
+}
+.preview:empty { display: none; }
+</style>
+</head>
+<body>
+  <main class="container">
+    <h1>📌 お気に入りレシピ保管庫</h1>
+    <p class="note">main2.html で保存したお気に入りをここで管理できます。</p>
+
+    <div class="toolbar">
+      <a class="btn" href="/">← レシピ生成へ戻る</a>
+      <button id="reloadButton">再読込</button>
+      <button id="clearButton">全件削除</button>
+    </div>
+
+    <div id="list" class="grid"></div>
+    <div id="preview" class="preview"></div>
+  </main>
+
+<script>
+const FAVORITES_KEY = "recipe-ai-favorites";
+const listNode = document.getElementById("list");
+const previewNode = document.getElementById("preview");
+const reloadButton = document.getElementById("reloadButton");
+const clearButton = document.getElementById("clearButton");
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function readFavorites() {
+  try {
+    const raw = localStorage.getItem(FAVORITES_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFavorites(items) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(items));
+}
+
+function renderPreview(item) {
+  const recipe = item?.recipe || {};
+  const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+  const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+
+  previewNode.innerHTML = `
+    <h3>${escapeHtml(recipe.name || item.name || "レシピ")}</h3>
+    <p class="meta">保存日時: ${escapeHtml(item.savedAt || "-")}</p>
+    <h4>材料</h4>
+    <ul>${ingredients.map(i => `<li>${escapeHtml(i)}</li>`).join("") || "<li>情報なし</li>"}</ul>
+    <h4>手順</h4>
+    <ol>${steps.map(s => `<li>${escapeHtml(s)}</li>`).join("") || "<li>情報なし</li>"}</ol>
+  `;
+}
+
+function renderList() {
+  const items = readFavorites();
+
+  if (!items.length) {
+    listNode.innerHTML = '<p class="empty">保存データはありません。</p>';
+    previewNode.innerHTML = "";
+    return;
+  }
+
+  listNode.innerHTML = items.map((item, index) => `
+    <article class="card">
+      <h3>${escapeHtml(item.name || "名前なし")}</h3>
+      <div class="meta">${escapeHtml(item.savedAt || "日時なし")}</div>
+      <div class="meta">食材: ${escapeHtml(item.message || "-")}</div>
+      <div class="actions">
+        <button class="primary" data-action="show" data-index="${index}">詳細</button>
+        <button data-action="delete" data-index="${index}">削除</button>
+      </div>
+    </article>
+  `).join("");
+}
+
+listNode.addEventListener("click", (event) => {
+  const button = event.target.closest("button");
+  if (!button) return;
+
+  const index = Number(button.dataset.index);
+  const action = button.dataset.action;
+  const items = readFavorites();
+  const item = items[index];
+  if (!item) return;
+
+  if (action === "show") {
+    renderPreview(item);
+    return;
+  }
+
+  if (action === "delete") {
+    items.splice(index, 1);
+    writeFavorites(items);
+    renderList();
+    previewNode.innerHTML = "";
+  }
+});
+
+reloadButton.addEventListener("click", renderList);
+clearButton.addEventListener("click", () => {
+  if (!confirm("保存済みお気に入りを全て削除しますか？")) return;
+  writeFavorites([]);
+  renderList();
+});
+
+renderList();
+</script>
+</body>
+</html>
