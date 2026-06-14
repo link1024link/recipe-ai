@@ -79,7 +79,7 @@
 ### 1. ローカルLLMによる完全自立型構成
 
 外部APIを使用せず、EC2上でLLMを直接実行する構成を採用しました。  
-これにより、ネットワーク環境に依存せずに動作するAIアプリを実現しています。
+これにより、ネットワーク環境に依存しないAIアプリを実現しています。
 
 ---
 
@@ -223,169 +223,23 @@ http://<EC2_IP>:8000/
 
 ## 🖼 スクリーンショット
 
-assets/images/recipe-screenshot-1.png  
-assets/images/recipe-screenshot-2.png  
-assets/images/recipe-screenshot-3.png
+![スクリーンショット1](assets/images/recipe-screenshot-1.png)
+![スクリーンショット2](assets/images/recipe-screenshot-2.png)
+![スクリーンショット3](assets/images/recipe-screenshot-3.png)
 
 ***
 
+## 🌍 English Summary (short)
 
-を行うことで、安定したレシピ生成を実現しました。
+AI Recipe Generator using a local LLM (Ollama).
 
----
+This application generates practical cooking recipes from given ingredients without relying on external APIs.
 
-## 💡 工夫したポイント
+Key features:
 
-### 1. ローカルLLMによる完全自立型構成
-
-外部APIを使用せず、EC2上でLLMを直接実行する構成を採用しました。  
-これにより、ネットワーク環境に依存せずに動作するAIアプリを実現しています。
-
----
-
-### 2. プロンプト設計による出力制御
-
-生成結果の品質を安定させるために、以下の設計を行いました。
-
-- JSON形式の厳密な出力指定  
-- 分量付き材料の強制  
-- 調理手順の現実性チェック  
-
----
-
-### 3. エラー耐性とフォールバック設計
-
-- LLM生成失敗時のフォールバック処理  
-- APIレスポンスの検証  
-- フロント側での例外処理  
-
-により、ユーザー体験を損なわない設計としています。
-
----
-
-### 4. UX設計（低速環境対応）
-
-ローカルLLMの特性上、生成に時間がかかるため、
-
-- ローディング表示  
-- 再生成機能  
-- リクエスト制御（連打防止）  
-
-を実装しています。
-
----
-
-## 💥 苦労した点
-
-- ローカルLLMの応答が遅く、タイムアウトが発生したこと  
-- JSON形式で安定した出力を得ることが難しかったこと  
-- 実用的なレシピにするためのプロンプト設計  
-
-これらの課題に対して、試行錯誤しながら改善しました。
-
----
-
-## ⚠ 課題と対応
-
-### 問題
-
-CPU環境でのローカルLLM実行のため、レシピ生成に数十秒〜数分程度の時間がかかる場合があります。
-
-### 対応
-
-- タイムアウト時間の最適化  
-- 軽量モデルの検証  
-- プロンプト簡略化による高速化  
-
----
-
-## 📈 今後の開発方針
-
-### 1. 性能向上
-- インスタンススペックの最適化  
-- 軽量・量子化モデルの活用  
-- 応答速度の改善  
-
-### 2. 対話型レシピ提案
-- チャット形式UIの導入  
-- 好み・制約条件の反映  
-
-### 3. パーソナライズ
-- ダイエット / 筋トレ / 時短など目的別提案  
-
-### 4. 食材管理機能
-- 冷蔵庫在庫管理  
-- 消費期限ベースの提案  
-
----
-
-## 🔐 セキュリティ
-
-本アプリは、機密情報を含まない構成で公開できるよう設計しています。
-
-- 環境依存の設定は環境変数で管理  
-- APIキーや秘密鍵をコードに含めない  
-- 入力検証およびエラーハンドリングを実装  
-
----
-
-## 🚀 デプロイと実行
-
-### 前提
-- Ubuntu（EC2）環境
-- Python3 インストール済み
-
----
-
-### 1. プロジェクト配置
-
-```bash
-scp -r <LOCAL_PATH> <REMOTE_USER>@<REMOTE_HOST>:<REMOTE_PATH>
-ssh <REMOTE_USER>@<REMOTE_HOST>
-cd <REMOTE_PATH>
-```
+* Recipe generation with quantities per serving
+* Multiple recipe candidates and detail view
+* Regeneration support
+* Favorites saved in localStorage
 
 ***
-
-### 2. 環境構築
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install --upgrade pip
-pip install fastapi uvicorn requests
-```
-
-***
-
-### 3. Ollama準備
-
-* Ollamaをインストール
-* モデル（例: gemma3:4b）をダウンロード
-
-***
-
-### 4. 起動
-
-```bash
-uvicorn app:app --host 0.0.0.0 --port 8000
-```
-
-***
-
-### 5. アクセス
-
-```
-http://<EC2_IP>:8000/
-```
-
-***
-
-## 🖼 スクリーンショット
-
-assets/images/recipe-screenshot-1.png  
-assets/images/recipe-screenshot-2.png  
-assets/images/recipe-screenshot-3.png
-
-***
-
